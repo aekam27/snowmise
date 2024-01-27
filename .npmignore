@@ -1,0 +1,7 @@
+.vscode
+.editorconfig
+node_modules
+test.*
+test.*
+ts*.json
+*.ts

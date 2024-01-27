@@ -2,7 +2,7 @@
   "name": "snowmise",
   "version": "1.0.0",
   "description": "Snowflake Wrapper",
-  "main": "index.ts",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -12,6 +12,7 @@
     "snowflake-sdk": "^1.9.3"
   },
   "devDependencies": {
-    "@types/snowflake-sdk": "^1.6.20"
+    "@types/snowflake-sdk": "^1.6.20",
+    "typescript": "^5.3.3"
   }
 }

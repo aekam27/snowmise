@@ -1,12 +1,8 @@
-
-
-
-
 import * as SDK from 'snowflake-sdk';
 import { SnowflakeError } from './interfaces/SnowflakeError';
 import { ConnectionOptions } from './interfaces/Connection';
 import { ConfigurationOptions } from './interfaces/Configurations';
-import { Bind, ExecuteOptions } from './interfaces/ExecutionOptions';
+import { Bind } from './interfaces/ExecutionOptions';
 
 export class Snowflake {
     private readonly connection;

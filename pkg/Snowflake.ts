@@ -3,11 +3,12 @@ import { SnowflakeError } from './interfaces/SnowflakeError';
 import { ConnectionOptions } from './interfaces/Connection';
 import { ConfigurationOptions } from './interfaces/Configurations';
 import { Bind } from './interfaces/ExecutionOptions';
+import { Readable } from "stream";
 
 export class Snowflake {
     private readonly connection;
-    private static executePromiseMap = {};
-    private static statementIdMap = {};
+    private static executePromiseMap: any = {};
+    private static statementIdMap: any = {};
     constructor(
         connectionOptions: ConnectionOptions,
         configurationOptions?: ConfigurationOptions
@@ -22,7 +23,7 @@ export class Snowflake {
         return this.connection.getId();
     }
 
-    get conn(): string {
+    get conn(): SDK.Connection {
         return this.connection;
     }
 
@@ -109,9 +110,9 @@ export class Snowflake {
         Snowflake.executePromiseMap[sqlText] = {
             'running': true,
             'executionPromise': new Promise((resolve, reject) => {
-                const executionOptions = {
+                const executionOptions: any = {
                     'sqlText': sqlText,
-                    'complete': (err, _, rows) => {
+                    'complete': (err: any, _: any, rows: any) => {
                         Snowflake.executePromiseMap[sqlText]['running'] = false;
                         if (destroyQueryCacheResponse) {
                             Snowflake.executePromiseMap[sqlText]['rows'] = rows;
@@ -127,15 +128,15 @@ export class Snowflake {
                 if (binds) {
                     executionOptions['binds'] = binds;
                 }
-                const stmt = this.connection.execute(executionOptions);
+                this.connection.execute(executionOptions);
             })
         }
         return this.returnExecutionPromise(sqlText);
     }
 
 
-    public createStatement(sqlText: string, onComplete: (err, rows) => any, binds?: Bind[] | Bind[][], streamData?: boolean, getStream?: boolean, getStreamFn?: (stream) => any) {
-        const executionOptions = {
+    public createStatement(sqlText: string, onComplete: (err: any, rows: any) => any, binds?: Bind[] | Bind[][], streamData?: boolean, getStream?: boolean, getStreamFn?: (stream: Readable) => any) {
+        const executionOptions:any = {
             'sqlText': sqlText,
         };
         if (binds) {
@@ -143,27 +144,27 @@ export class Snowflake {
         }
         if (streamData) {
             executionOptions['streamResult'] = streamData;
-            executionOptions['complete'] = (err, stmt) => {
+            executionOptions['complete'] = (err: any, stmt: { streamRows: () => Readable; }) => {
                 const stream = stmt.streamRows();
                 if (getStream && getStreamFn) {
                     getStreamFn(stream);
                 } else {
                     const rows: any = [];
                     let error = null;
-                    stream.on('readable', function (row) {
+                    stream.on('readable', function (this: any,row: any) {
                         while ((row = this.read()) !== null) {
                             rows.push(row)
                         }
                     }).on('end', function () {
                         onComplete(err, rows);
-                    }).on('error', function (err) {
+                    }).on('error', function (err: any) {
                         error = err;
                         onComplete(err, null);
                     });
                 }
             }
         } else {
-            executionOptions['complete'] = (err, _, rows) => {
+            executionOptions['complete'] = (err: any, _: any, rows: any) => {
                 onComplete(err, rows);
             }
         }
@@ -215,7 +216,7 @@ export class Snowflake {
     public cancel(stmtId: string) {
         if (!Snowflake.statementIdMap[stmtId]) { throw new SnowflakeError('Either the statement id is invalid or expired.') }
         return new Promise<void>((resolve, reject) => {
-            Snowflake.statementIdMap[stmtId].cancel(err => {
+            Snowflake.statementIdMap[stmtId].cancel((err: any) => {
                 delete Snowflake.statementIdMap[stmtId];
                 if (err) { reject(err); }
                 else { resolve(); }
@@ -224,9 +225,9 @@ export class Snowflake {
     }
 
     private returnExecutionPromise(sqlText: string) {
-        return Snowflake.executePromiseMap[sqlText]['executionPromise'].then((rows) => {
+        return Snowflake.executePromiseMap[sqlText]['executionPromise'].then((rows: any) => {
             return rows
-        }).catch((err) => {
+        }).catch((err: any) => {
             throw new SnowflakeError(err.message)
         });
     }

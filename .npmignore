@@ -6,4 +6,3 @@ test.*
 ts*.json
 *.ts
 .gitattributes
-dist

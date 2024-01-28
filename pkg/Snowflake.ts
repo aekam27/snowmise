@@ -152,16 +152,16 @@ export class Snowflake {
                     getStreamFn(stream);
                 } else {
                     const rows: any = [];
-                    let error = null;
+                    let error:any = null;
                     stream.on('readable', function (this: any,row: any) {
                         while ((row = this.read()) !== null) {
                             rows.push(row)
                         }
                     }).on('end', function () {
-                        onComplete(err, rows);
+                        onComplete(error, rows);
                     }).on('error', function (err: any) {
                         error = err;
-                        onComplete(err, null);
+                        onComplete(error, null);
                     });
                 }
             }

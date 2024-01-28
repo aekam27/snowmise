@@ -1,7 +1,6 @@
 {
   "include": [
     "pkg/**/*",
-    "test/**/*"
   ],
   "compilerOptions": {
     "rootDir": ".",

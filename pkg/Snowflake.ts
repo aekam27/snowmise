@@ -6,7 +6,7 @@ import { Bind } from './interfaces/ExecutionOptions';
 import { Readable } from "stream";
 
 export class Snowflake {
-    private readonly connection;
+    private readonly connection: SDK.Connection;
     private static executePromiseMap: any = {};
     private static statementIdMap: any = {};
     constructor(
@@ -40,19 +40,19 @@ export class Snowflake {
     }
 
     public isConnectionUp() {
-        if (!this.connection) { throw new SnowflakeError('Snowflake connection is not up - call connect() to establish a connection'); }
-        return new Promise<boolean>((resolve, reject) => {
+        if (!this.connection) { throw new SnowflakeError('Snowflake is not initialized - Initialize Snowflake and call connect() to establish a connection'); }
+        return new Promise<boolean>((resolve, _) => {
             const isUp = this.connection.isUp();
             if (isUp) {
                 resolve(true);
             } else {
-                reject(false);
+                resolve(false);
             }
         });
     }
 
     public isValidConnection() {
-        if (!this.connection) { throw new SnowflakeError('Snowflake connection is not up - call connect() to establish a connection'); }
+        if (!this.connection) { throw new SnowflakeError('Snowflake is not initialized - Initialize Snowflake and call connect() to establish a connection'); }
         return this.connection.isValidAsync();
     }
 
@@ -93,16 +93,17 @@ export class Snowflake {
     }
 
 
-    public execute(sqlText: string, binds?: Bind[] | Bind[][], destroyQueryCacheResponse: number = 120) {
+    public execute(sqlText: string, binds?: Bind[] | Bind[][], destroyQueryCacheResponse: number = 2000) {
         if (Snowflake.executePromiseMap[sqlText] && Snowflake.executePromiseMap[sqlText]['running']) {
             return this.returnExecutionPromise(sqlText);
         }
 
-        if (destroyQueryCacheResponse && Snowflake.executePromiseMap[sqlText] && !Snowflake.executePromiseMap[sqlText]['running']
-            && !Snowflake.executePromiseMap[sqlText]['error']) {
+        if (Snowflake.executePromiseMap[sqlText] && !Snowflake.executePromiseMap[sqlText]['running']
+            && !Snowflake.executePromiseMap[sqlText]['error'] && Snowflake.executePromiseMap[sqlText]['destroyQueryCacheResponse']) {
             const queryExecutedAt = Snowflake.executePromiseMap[sqlText]['queryExecutedAt'];
             const currentTime = new Date().getTime();
-            if (destroyQueryCacheResponse < (currentTime - queryExecutedAt)) {
+            const destroyQueryCacheResponse = Snowflake.executePromiseMap[sqlText]['destroyQueryCacheResponse'];
+            if (destroyQueryCacheResponse > (currentTime - queryExecutedAt)) {
                 return Snowflake.executePromiseMap[sqlText]['rows'];
             }
         }
@@ -117,6 +118,7 @@ export class Snowflake {
                         if (destroyQueryCacheResponse) {
                             Snowflake.executePromiseMap[sqlText]['rows'] = rows;
                             Snowflake.executePromiseMap[sqlText]['queryExecutedAt'] = new Date().getTime();
+                            Snowflake.executePromiseMap[sqlText]['destroyQueryCacheResponse'] = destroyQueryCacheResponse;
                         }
                         if (err) {
                             Snowflake.executePromiseMap[sqlText]['error'] = true;

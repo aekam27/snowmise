@@ -128,7 +128,6 @@ export class Snowflake {
                     executionOptions['binds'] = binds;
                 }
                 const stmt = this.connection.execute(executionOptions);
-                Snowflake.executePromiseMap[sqlText]['stmt'] = stmt;
             })
         }
         return this.returnExecutionPromise(sqlText);

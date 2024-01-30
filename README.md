@@ -1,4 +1,6 @@
 # snowmise
+# beta
+
 const snowflake = require('snowmise');
 const {Snowflake} = snowflake;
 const snowmise = new Snowflake({

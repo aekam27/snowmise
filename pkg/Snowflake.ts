@@ -2,19 +2,34 @@ import * as SDK from 'snowflake-sdk';
 import { SnowflakeError } from './interfaces/SnowflakeError';
 import { ConnectionOptions } from './interfaces/Connection';
 import { ConfigurationOptions } from './interfaces/Configurations';
-import { Bind } from './interfaces/ExecutionOptions';
+import { Bind, CacheStore } from './interfaces/ExecutionOptions';
 import { Readable } from "stream";
+const Redis = require("ioredis");
+const NodeCache = require( "node-cache" );
+const crypto = require('crypto');
 
 export class Snowflake {
     private readonly connection: SDK.Connection;
+    private readonly cacheStoreConnection: any;
     private static executePromiseMap: any = {};
     private static statementIdMap: any = {};
+    private static cacheStore: CacheStore = null;
     constructor(
         connectionOptions: ConnectionOptions,
-        configurationOptions?: ConfigurationOptions
+        cacheStore?: CacheStore,
+        configurationOptions?: ConfigurationOptions,
+        cacheStoreConfigs?: any
     ) {
-        if (configurationOptions && typeof configurationOptions === 'object') {
+        if ( configurationOptions && typeof configurationOptions === 'object' ) {
             SDK.configure(configurationOptions);
+        }
+        if ( cacheStore ) {
+            Snowflake.cacheStore = cacheStore;
+            if ( cacheStore === 'redis' ) {
+                this.cacheStoreConnection = cacheStoreConfigs?.connectionString ? new Redis(cacheStoreConfigs?.connectionString): new Redis()
+            } else if ( cacheStore === 'inmemory' ) {
+                this.cacheStoreConnection = cacheStoreConfigs?.connectionString ? new NodeCache(cacheStoreConfigs): new NodeCache( { checkperiod: 120 } );
+            }
         }
         this.connection = SDK.createConnection(connectionOptions);
     }
@@ -58,34 +73,43 @@ export class Snowflake {
 
     public connectAsync() {
         return new Promise<void>((resolve, reject) => {
-            this.connection.connectAsync((err, _) => {
+            this.connection.connectAsync(async (err, _) => {
                 if (err) {
                     reject(err);
                 } else {
+                    const isPong = await this.pingStoreConn();
+                    if (isPong !== 'PONG') {
+                        console.log('Cache store connection failed.')
+                    }
                     resolve();
                 }
             });
         });
     }
 
-    public connect() {
+    public async connect() {
         return new Promise<void>((resolve, reject) => {
-            this.connection.connect((err, _) => {
+            this.connection.connect(async (err, _) => {
                 if (err) {
                     reject(err);
                 } else {
+                    const isPong = await this.pingStoreConn();
+                    if (isPong !== 'PONG') {
+                        console.log('Cache store connection failed.')
+                    }
                     resolve();
                 }
             });
         });
     }
 
-    public destroy() {
+    public async destroy() {
         return new Promise<void>((resolve, reject) => {
-            this.connection.destroy(err => {
+            this.connection.destroy(async (err) => {
                 if (err) {
                     reject(err);
                 } else {
+                    await this.disconnectConn()
                     resolve();
                 }
             });
@@ -93,36 +117,56 @@ export class Snowflake {
     }
 
 
-    public execute(sqlText: string, binds?: Bind[] | Bind[][], destroyQueryCacheResponse: number = 2000) {
-        if (Snowflake.executePromiseMap[sqlText] && Snowflake.executePromiseMap[sqlText]['running']) {
-            return this.returnExecutionPromise(sqlText);
+    public async execute(sqlText: string, binds?: Bind[] | Bind[][], destroyQueryCacheResponse: number = 60000, useHash: boolean = true) {
+        let uniqKey = sqlText;
+        if (useHash) {
+            uniqKey = crypto.createHash('md5').update(sqlText).digest("hex") 
+        }
+        if (Snowflake.executePromiseMap[uniqKey] && Snowflake.executePromiseMap[uniqKey]['running']) {
+            return this.returnExecutionPromise(uniqKey);
         }
 
-        if (Snowflake.executePromiseMap[sqlText] && !Snowflake.executePromiseMap[sqlText]['running']
-            && !Snowflake.executePromiseMap[sqlText]['error'] && Snowflake.executePromiseMap[sqlText]['destroyQueryCacheResponse']) {
-            const queryExecutedAt = Snowflake.executePromiseMap[sqlText]['queryExecutedAt'];
+        if (Snowflake.executePromiseMap[uniqKey] && !Snowflake.executePromiseMap[uniqKey]['running']
+            && !Snowflake.executePromiseMap[uniqKey]['error'] && Snowflake.executePromiseMap[uniqKey]['destroyQueryCacheResponse']) {
+            const queryExecutedAt = Snowflake.executePromiseMap[uniqKey]['queryExecutedAt'];
             const currentTime = new Date().getTime();
-            const destroyQueryCacheResponse = Snowflake.executePromiseMap[sqlText]['destroyQueryCacheResponse'];
+            const destroyQueryCacheResponse = Snowflake.executePromiseMap[uniqKey]['destroyQueryCacheResponse'];
             if (destroyQueryCacheResponse > (currentTime - queryExecutedAt)) {
-                return Snowflake.executePromiseMap[sqlText]['rows'];
+                if ( Snowflake.cacheStore ) {
+                    let record;
+                    try {
+                        record =  await this.getRecords(Snowflake.cacheStore, uniqKey);
+                        return JSON.parse(record)?.data;
+                    } catch (err) {
+                        console.log(`The key does not exist in ${Snowflake.cacheStore}. Retrying with in-memory map records.`);
+                    } 
+                }
+                return Snowflake.executePromiseMap[uniqKey]['rows'];
             }
         }
 
-        Snowflake.executePromiseMap[sqlText] = {
+        Snowflake.executePromiseMap[uniqKey] = {
             'running': true,
             'executionPromise': new Promise((resolve, reject) => {
                 const executionOptions: any = {
                     'sqlText': sqlText,
-                    'complete': (err: any, _: any, rows: any) => {
-                        Snowflake.executePromiseMap[sqlText]['running'] = false;
-                        if (destroyQueryCacheResponse) {
-                            Snowflake.executePromiseMap[sqlText]['rows'] = rows;
-                            Snowflake.executePromiseMap[sqlText]['queryExecutedAt'] = new Date().getTime();
-                            Snowflake.executePromiseMap[sqlText]['destroyQueryCacheResponse'] = destroyQueryCacheResponse;
-                        }
+                    'complete': async (err: any, _: any, rows: any) => {
+                        Snowflake.executePromiseMap[uniqKey]['running'] = false;
                         if (err) {
-                            Snowflake.executePromiseMap[sqlText]['error'] = true;
+                            Snowflake.executePromiseMap[uniqKey]['error'] = true;
                             reject(err);
+                        }
+                        if (destroyQueryCacheResponse) {
+                            Snowflake.executePromiseMap[uniqKey]['rows'] = rows;
+                            Snowflake.executePromiseMap[uniqKey]['queryExecutedAt'] = new Date().getTime();
+                            Snowflake.executePromiseMap[uniqKey]['destroyQueryCacheResponse'] = destroyQueryCacheResponse;
+                            if ( Snowflake.cacheStore ) {
+                                try {
+                                    await this.setRecords(Snowflake.cacheStore, uniqKey, JSON.stringify({data:rows}),destroyQueryCacheResponse);
+                                } catch (err) {
+                                    console.log(`Unable to update the key value in ${Snowflake.cacheStore}. Error trace: '${err}'`);
+                                } 
+                            }                
                         }
                         resolve(rows);
                     }
@@ -133,7 +177,7 @@ export class Snowflake {
                 this.connection.execute(executionOptions);
             })
         }
-        return this.returnExecutionPromise(sqlText);
+        return this.returnExecutionPromise(uniqKey);
     }
 
 
@@ -226,12 +270,54 @@ export class Snowflake {
         });
     }
 
-    private returnExecutionPromise(sqlText: string) {
-        return Snowflake.executePromiseMap[sqlText]['executionPromise'].then((rows: any) => {
+    private returnExecutionPromise(uniqKey: string) {
+        return Snowflake.executePromiseMap[uniqKey]['executionPromise'].then((rows: any) => {
             return rows
         }).catch((err: any) => {
             throw new SnowflakeError(err.message)
         });
+    }
+
+    private getRecords(cacheStore: string, key: string) {
+        switch(cacheStore){
+            case 'redis':
+                return this.cacheStoreConnection.get(key);
+            case 'inmemory':
+                return this.cacheStoreConnection.get(key);
+            default:
+                Snowflake.cacheStore = null;
+                throw new SnowflakeError('Invalid store type')
+        }
+    }
+
+    private setRecords(cacheStore: string, key: string, value: string, expiryTime: number) {
+        switch(cacheStore){
+            case 'redis':
+                return this.cacheStoreConnection.set(key, value,"EX", expiryTime);
+            case 'inmemory':
+                return this.cacheStoreConnection.set(key, value, expiryTime);
+            default:
+                Snowflake.cacheStore = null;
+                throw new SnowflakeError('Invalid store type')
+        }
+    }
+
+    private async pingStoreConn(){
+        switch (Snowflake.cacheStore) {
+            case 'redis':
+                return this.cacheStoreConnection.ping();
+            default:
+                return;
+        }
+    }
+
+    private disconnectConn(){
+        switch (Snowflake.cacheStore) {
+            case 'redis':
+                return this.cacheStoreConnection.disconnect();
+            default:
+                return;
+        } 
     }
 
 }

@@ -5,3 +5,5 @@ export interface ExecuteOptions {
     parameters?: Record<string, unknown>;
 }
 export type Bind = string | number
+
+export type CacheStore = 'inmemory' | 'redis' | null;

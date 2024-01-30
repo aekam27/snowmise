@@ -1,6 +1,7 @@
 # snowmise
 # beta
-
+# Supports node-cache, redis cache
+ 
 const snowflake = require('snowmise');
 const {Snowflake} = snowflake;
 const snowmise = new Snowflake({

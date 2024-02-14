@@ -20,7 +20,7 @@ export class Snowflake {
         configurationOptions?: ConfigurationOptions,
         cacheStoreConfigs?: any
     ) {
-        if ( configurationOptions && typeof configurationOptions === 'object' ) {
+        if ( configurationOptions && Object.prototype.toString.call(configurationOptions) === '[object Object]' ) {
             SDK.configure(configurationOptions);
         }
         if ( cacheStore ) {
@@ -306,8 +306,10 @@ export class Snowflake {
         switch (Snowflake.cacheStore) {
             case 'redis':
                 return this.cacheStoreConnection.ping();
+            case 'inmemory':
+                return 'PONG';
             default:
-                return;
+                return 'DING';
         }
     }
 

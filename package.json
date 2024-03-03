@@ -1,6 +1,6 @@
 {
   "name": "snowmise",
-  "version": "0.0.1-beta.2",
+  "version": "0.0.3",
   "description": "Snowflake Wrapper",
   "main": "dist/pkg/index.js",
   "types": "dist/pkg/index.d.ts",
@@ -10,6 +10,10 @@
   },
   "author": "Aekam27",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aekam27/snowmise.git"
+  },
   "dependencies": {
     "ioredis": "^5.3.2",
     "node-cache": "^5.1.2",

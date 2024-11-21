@@ -66,12 +66,6 @@ To use the Snowmise Node.js package in your project, follow these installation s
       serviceName: string 
       Returns the name of the Snowflake service.
 
-      clientSessionKeepAlive: boolean
-      Returns a boolean indicating whether client session keep-alive is enabled.
-
-      clientSessionKeepAliveHeartbeatFrequency: number 
-      Returns the frequency of client session keep-alive heartbeats in milliseconds.
-
 <b>Connection Management</b>
 
       isConnectionUp(): Promise<boolean> 
@@ -97,8 +91,14 @@ To use the Snowmise Node.js package in your project, follow these installation s
            binds: Optional array of bind variables.
            destroyQueryCacheResponse: Time (in milliseconds) to cache query results.
            useHash: If true, uses a hash of the SQL text as a unique key for caching.
-              
-      2. createStatement(sqlText: string, onComplete: (err: any, rows: any) => any, binds?: Bind[] | Bind[][], streamData?: boolean, getStream?: boolean, getStreamFn?: (stream: Readable) => any): string
+
+      2. public async *executeAsyncStream(sqlText: string, binds?: Bind[] | Bind[][]): AsyncGenerator<any, void, unknown>
+         The executeAsyncStream function is an asynchronous generator designed to execute a SQL query and stream the results row-by-row. It enables efficient handling of large result sets by processing rows incrementally rather than loading the entire dataset into memory at once.
+         Parameters:
+           sqlText: The SQL query to execute.
+           binds: Optional array of bind variables.
+            
+      3. createStatement(sqlText: string, onComplete: (err: any, rows: any) => any, binds?: Bind[] | Bind[][], streamData?: boolean, getStream?: boolean, getStreamFn?: (stream: Readable) => any): string
          
          Creates a Snowflake statement for executing SQL queries.
          
@@ -107,31 +107,31 @@ To use the Snowmise Node.js package in your project, follow these installation s
            onComplete: Callback function to handle query results.
            Additional parameters for handling streaming and advanced options.
         
-      3. getStatementSQLText(stmtId: string): string
+      4. getStatementSQLText(stmtId: string): string
          Retrieves the SQL text of a Snowflake statement using its identifier.
                   
-      4. getStatementExecutionStatus(stmtId: string): string
+      5. getStatementExecutionStatus(stmtId: string): string
          Retrieves the execution status of a Snowflake statement using its identifier.
          
-      5. getColumnsReturnedByStatement(stmtId: string): any[]
+      6. getColumnsReturnedByStatement(stmtId: string): any[]
          Retrieves an array of column objects returned by a Snowflake statement using its identifier.
          
-      6. getColumnReturnedByStatement(stmtId: string, columnIdentifier: string | number): any
+      7. getColumnReturnedByStatement(stmtId: string, columnIdentifier: string | number): any
          Retrieves a specific column object returned by a Snowflake statement using its identifier and column identifier.
          
-      7. getNumRows(stmtId: string): number
+      8. getNumRows(stmtId: string): number
          Retrieves the number of rows returned by a Snowflake statement using its identifier.
          
-      8. getSessionState(stmtId: string): string
+      9. getSessionState(stmtId: string): string
          Retrieves the session state of a Snowflake statement using its identifier.
          
-      9. getRequestId(stmtId: string): string
+      10. getRequestId(stmtId: string): string
          Retrieves the request identifier associated with a Snowflake statement using its identifier.
          
-      10.getNumUpdatedRows(stmtId: string): number
+      11.getNumUpdatedRows(stmtId: string): number
          Retrieves the number of updated rows by a Snowflake statement using its identifier.
          
-      11.cancel(stmtId: string): Promise<void>
+      12.cancel(stmtId: string): Promise<void>
          Cancels the execution of a Snowflake statement using its identifier. Returns a Promise that resolves when the cancellation is complete.
 
 

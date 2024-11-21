@@ -1,6 +1,6 @@
 {
   "name": "snowmise",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Snowflake Wrapper",
   "main": "dist/pkg/index.js",
   "types": "dist/pkg/index.d.ts",

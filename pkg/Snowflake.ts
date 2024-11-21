@@ -46,14 +46,6 @@ export class Snowflake {
         return this.connection.getServiceName();
     }
 
-    get clientSessionKeepAlive(): boolean {
-        return this.connection.getClientSessionKeepAlive();
-    }
-
-    get clientSessionKeepAliveHeartbeatFrequency(): number {
-        return this.connection.getClientSessionKeepAliveHeartbeatFrequency();
-    }
-
     public isConnectionUp() {
         if (!this.connection) { throw new SnowflakeError('Snowflake is not initialized - Initialize Snowflake and call connect() to establish a connection'); }
         return new Promise<boolean>((resolve, _) => {
@@ -180,6 +172,20 @@ export class Snowflake {
         return this.returnExecutionPromise(uniqKey);
     }
 
+    public async *executeAsyncStream(sqlText: string, binds?: Bind[] | Bind[][]) {
+        const executionOptions:any = {
+            'sqlText': sqlText,
+            streamResult: true,
+        };
+        if (binds) {
+            executionOptions['binds'] = binds;
+        }
+        const stmt = this.connection.execute(executionOptions);
+        const stream = stmt.streamRows();
+        for await (const row of stream) {
+            yield row;
+        }
+    }
 
     public createStatement(sqlText: string, onComplete: (err: any, rows: any) => any, binds?: Bind[] | Bind[][], streamData?: boolean, getStream?: boolean, getStreamFn?: (stream: Readable) => any) {
         const executionOptions:any = {
@@ -191,6 +197,10 @@ export class Snowflake {
         if (streamData) {
             executionOptions['streamResult'] = streamData;
             executionOptions['complete'] = (err: any, stmt: { streamRows: () => Readable; }) => {
+                if (err) {
+                    onComplete(err, null);
+                    return;
+                }
                 const stream = stmt.streamRows();
                 if (getStream && getStreamFn) {
                     getStreamFn(stream);
@@ -215,8 +225,8 @@ export class Snowflake {
             }
         }
         const stmt = this.connection.execute(executionOptions);
-        Snowflake.statementIdMap[stmt.getStatementId()] = stmt;
-        return stmt.getStatementId();
+        Snowflake.statementIdMap[stmt.getQueryId()] = stmt;
+        return stmt.getQueryId();
     }
 
     public getStatementSQLText(stmtId: string) {

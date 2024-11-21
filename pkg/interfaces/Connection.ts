@@ -9,7 +9,7 @@ export interface ConnectionOptions {
     username?: string | undefined;
     password?: string | undefined;
     token?: string | undefined;
-    privateKey?: string | Buffer;
+    privateKey?: string;
     privateKeyPath?: string | undefined;
     privateKeyPass?: string | undefined;
 

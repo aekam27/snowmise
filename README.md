@@ -10,6 +10,30 @@ callbacks, and adds two things on top: identical queries issued at the same time
 share a single round trip, and results can be cached for a configurable window
 in memory or in Redis.
 
+## Upgrading from 0.0.x
+
+0.1.0 changes two caching behaviours. Neither raises an error, so both are worth
+reading before you upgrade.
+
+**Cached results now expire when you asked them to.** The TTL argument is
+milliseconds, but it was being handed unconverted to Redis `EX` and to
+`node-cache`, which both take seconds. The default 60,000 ms TTL was therefore
+caching for 60,000 *seconds* — about 16.7 hours. If your workload was quietly
+relying on that, pass a larger `cacheTtlMs` explicitly; otherwise expect more
+queries to reach Snowflake than before.
+
+**Caches are no longer shared between instances.** Query results and statement
+handles used to be `static`, so every `Snowflake` object in a process shared one
+cache keyed on SQL text alone — two instances pointing at different accounts,
+databases or roles could serve each other's rows. Each instance now keeps its
+own state.
+
+Also: Node.js 20 or newer is required, and `@types/snowflake-sdk` should be
+removed from your project — the driver ships its own types now.
+
+The full list is in the
+[changelog](https://github.com/aekam27/snowmise/blob/main/CHANGELOG.md).
+
 ## Requirements
 
 - Node.js 20 or newer
@@ -159,6 +183,10 @@ npm run build
 npm test
 ```
 
+## Changelog
+
+See [CHANGELOG.md](https://github.com/aekam27/snowmise/blob/main/CHANGELOG.md).
+
 ## License
 
-ISC
+[ISC](https://github.com/aekam27/snowmise/blob/main/LICENSE)

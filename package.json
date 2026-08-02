@@ -1,11 +1,12 @@
 {
   "name": "snowmise",
   "version": "0.1.0",
-  "description": "Snowflake Wrapper",
+  "description": "Promise-based Snowflake driver wrapper with query de-duplication and optional in-memory or Redis result caching",
   "main": "dist/pkg/index.js",
   "types": "dist/pkg/index.d.ts",
   "files": [
-    "dist/pkg"
+    "dist/pkg",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=20"
@@ -21,6 +22,10 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/aekam27/snowmise.git"
+  },
+  "homepage": "https://github.com/aekam27/snowmise#readme",
+  "bugs": {
+    "url": "https://github.com/aekam27/snowmise/issues"
   },
   "keywords": [
     "snowmise",

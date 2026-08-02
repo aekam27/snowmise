@@ -1,12 +1,20 @@
 {
   "name": "snowmise",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "Snowflake Wrapper",
   "main": "dist/pkg/index.js",
   "types": "dist/pkg/index.d.ts",
+  "files": [
+    "dist/pkg"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "rm -rf dist && npx tsc",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "build": "rm -rf dist && tsc",
+    "lint": "eslint pkg test",
+    "test": "jest",
+    "prepublishOnly": "npm run build"
   },
   "author": "Aekam27",
   "license": "ISC",
@@ -23,14 +31,18 @@
     "promise"
   ],
   "dependencies": {
-    "ioredis": "^5.4.1",
+    "ioredis": "^5.11.1",
     "node-cache": "^5.1.2",
-    "snowflake-sdk": "^1.15.0",
-    "@types/snowflake-sdk": "^1.6.24"
+    "snowflake-sdk": "^3.1.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.11",
-    "jest": "^29.7.0",
-    "typescript": "^5.6.3"
+    "@eslint/js": "^10.0.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^26.1.2",
+    "eslint": "^10.8.0",
+    "jest": "^30.4.2",
+    "ts-jest": "^29.4.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
   }
 }

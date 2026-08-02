@@ -1,141 +1,164 @@
-# Snowmise: A Promise based wrapper for Snowflake 
+# Snowmise
 
-# Overview
+[![CI](https://github.com/aekam27/snowmise/actions/workflows/ci.yml/badge.svg)](https://github.com/aekam27/snowmise/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/snowmise.svg)](https://www.npmjs.com/package/snowmise)
 
-The Snowmise Node.js package is a powerful tool for interacting with the Snowflake data warehouse using Node.js. This package provides a comprehensive set of features, including executing SQL queries, managing connections, caching query results, and handling Snowflake statements.
+A promise-based wrapper around the Snowflake Node.js driver.
 
-# Installation
+Snowmise wraps `snowflake-sdk` so queries return promises instead of taking
+callbacks, and adds two things on top: identical queries issued at the same time
+share a single round trip, and results can be cached for a configurable window
+in memory or in Redis.
 
-To use the Snowmise Node.js package in your project, follow these installation steps:
+## Requirements
 
-1. Install the package using npm: <b>npm install snowmise</b>
+- Node.js 20 or newer
+- `snowflake-sdk` 3.x (installed as a dependency)
 
-2. Import the necessary modules in your Node.js application: <br/>
-      <b>const SDK = require('snowmise');</b><br/>
-      or<br/>
-      <b>import {Snowflake} from 'snowmise';</b>
+## Installation
 
-4. Create an instance of the Snowflake class to connect to your Snowflake account and begin executing queries.
-      const snowflake = new Snowflake(connectionOptions, cacheStore, configurationOptions, cacheStoreConfigs);
-      required: connectionOptions
-      optional: cacheStore, configurationOptions, cacheStoreConfigs
+```bash
+npm install snowmise
+```
 
-# Usage
-      
-  Basic Usage
-      
-      Create a Snowflake Connection:
-         const snowflake = new Snowflake({
-                                              account: "",
-                                              username: "",
-                                              password: "",
-                                              database: "",
-                                              schema: "",
-                                              warehouse: ""
-                                        });
-         await snowmise.connect()
-         
-      Execute a Query:
-         const result = await snowflake.execute(sqlText);
-      
-      Retrieve Statement Information:
-         const status = snowflake.getStatementExecutionStatus(stmtId);
-         const numRows = snowflake.getNumRows(stmtId);
-         const sessionState = snowflake.getSessionState(stmtId);
-         // ... and more
-         
-      Caching Results:  
-          const cacheStore = 'redis'; // or 'inmemory'
-          const cacheStoreConfigs = { connectionString: 'your-redis-connection-string' };
-          const snowflake = new Snowflake(connectionOptions, cacheStore, configurationOptions, cacheStoreConfigs);
-          
-      Destroy Connection:
-           await snowflake.destroy();
+```ts
+import { Snowflake } from 'snowmise';
+// or
+const { Snowflake } = require('snowmise');
+```
 
+## Quick start
 
-# API Reference
+```ts
+import { Snowflake } from 'snowmise';
 
-<b>Properties</b>
+const snowflake = new Snowflake({
+    account: 'my-account',
+    username: 'my-user',
+    password: 'my-password',
+    database: 'MY_DB',
+    schema: 'PUBLIC',
+    warehouse: 'COMPUTE_WH',
+});
 
-      id: string 
-      Returns the unique identifier for the Snowflake connection.
+await snowflake.connect();
 
-      conn: SDK.Connection 
-      Returns the underlying Snowflake SDK Connection instance.
+const rows = await snowflake.execute('select * from customers where region = ?', ['EMEA']);
 
-      serviceName: string 
-      Returns the name of the Snowflake service.
+await snowflake.destroy();
+```
 
-<b>Connection Management</b>
+## Constructor
 
-      isConnectionUp(): Promise<boolean> 
-      Checks if the Snowflake connection is established and returns a Promise that resolves to a boolean.
-      
-      isValidConnection(): Promise<boolean>
-      Checks if the Snowflake connection is valid and returns a Promise that resolves to a boolean.
-      
-      connect(): Promise<void>
-      Synchronously establishes a connection to the Snowflake account. Returns a Promise that resolves when the connection is successful.
-      
-      destroy(): Promise<void>
-      Destroys the Snowflake connection and performs cleanup. Returns a Promise that resolves when the destruction is complete.
-      
-<b>Query Execution</b>
+```ts
+new Snowflake(connectionOptions, cacheStore?, configurationOptions?, cacheStoreConfigs?)
+```
 
-      1. execute(sqlText: string, binds?: Bind[] | Bind[][], destroyQueryCacheResponse: number = 60000, useHash: boolean = true): Promise<any>
-         
-         Executes a SQL query asynchronously, handling caching and result retrieval.
-         
-         Parameters:
-           sqlText: The SQL query to execute.
-           binds: Optional array of bind variables.
-           destroyQueryCacheResponse: Time (in milliseconds) to cache query results.
-           useHash: If true, uses a hash of the SQL text as a unique key for caching.
+| Parameter | Required | Description |
+| --- | --- | --- |
+| `connectionOptions` | yes | Passed straight to `snowflake-sdk`'s `createConnection`. |
+| `cacheStore` | no | `'inmemory'`, `'redis'`, or omitted for no external cache. |
+| `configurationOptions` | no | Passed to `snowflake-sdk`'s `configure` (log level, OCSP behaviour). |
+| `cacheStoreConfigs` | no | `{ connectionString }` for Redis; forwarded to `node-cache` otherwise. |
 
-      2. public async *executeAsyncStream(sqlText: string, binds?: Bind[] | Bind[][]): AsyncGenerator<any, void, unknown>
-         The executeAsyncStream function is an asynchronous generator designed to execute a SQL query and stream the results row-by-row. It enables efficient handling of large result sets by processing rows incrementally rather than loading the entire dataset into memory at once.
-         Parameters:
-           sqlText: The SQL query to execute.
-           binds: Optional array of bind variables.
-            
-      3. createStatement(sqlText: string, onComplete: (err: any, rows: any) => any, binds?: Bind[] | Bind[][], streamData?: boolean, getStream?: boolean, getStreamFn?: (stream: Readable) => any): string
-         
-         Creates a Snowflake statement for executing SQL queries.
-         
-         Parameters:
-           sqlText: The SQL query to execute.
-           onComplete: Callback function to handle query results.
-           Additional parameters for handling streaming and advanced options.
-        
-      4. getStatementSQLText(stmtId: string): string
-         Retrieves the SQL text of a Snowflake statement using its identifier.
-                  
-      5. getStatementExecutionStatus(stmtId: string): string
-         Retrieves the execution status of a Snowflake statement using its identifier.
-         
-      6. getColumnsReturnedByStatement(stmtId: string): any[]
-         Retrieves an array of column objects returned by a Snowflake statement using its identifier.
-         
-      7. getColumnReturnedByStatement(stmtId: string, columnIdentifier: string | number): any
-         Retrieves a specific column object returned by a Snowflake statement using its identifier and column identifier.
-         
-      8. getNumRows(stmtId: string): number
-         Retrieves the number of rows returned by a Snowflake statement using its identifier.
-         
-      9. getSessionState(stmtId: string): string
-         Retrieves the session state of a Snowflake statement using its identifier.
-         
-      10. getRequestId(stmtId: string): string
-         Retrieves the request identifier associated with a Snowflake statement using its identifier.
-         
-      11.getNumUpdatedRows(stmtId: string): number
-         Retrieves the number of updated rows by a Snowflake statement using its identifier.
-         
-      12.cancel(stmtId: string): Promise<void>
-         Cancels the execution of a Snowflake statement using its identifier. Returns a Promise that resolves when the cancellation is complete.
+Cache backends are loaded lazily, so `ioredis` and `node-cache` are only
+required when you actually enable a cache store.
 
+## Caching
 
-# Dependencies
-      snowflake-sdk: (Version: ^1.9.3)
-      ioredis: (Version: ^5.3.2) (Required for Redis cache store)
-      node-cache: (Version: ^5.1.2) (Required for in-memory cache store)
+```ts
+const snowflake = new Snowflake(connectionOptions, 'redis', undefined, {
+    connectionString: 'redis://localhost:6379',
+});
+
+// Cache this result for 30 seconds.
+const rows = await snowflake.execute('select count(*) from events', undefined, 30_000);
+
+// Opt out of caching for a single call.
+const live = await snowflake.execute('select current_timestamp()', undefined, 0);
+```
+
+TTLs are given in **milliseconds** and converted to seconds for the underlying
+store. Each `Snowflake` instance keeps its own cache — two instances pointing at
+different databases or roles never share rows.
+
+## API reference
+
+### Properties
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | The underlying connection id. |
+| `conn` | `SDK.Connection` | The raw driver connection, for anything snowmise does not wrap. |
+| `serviceName` | `string` | The Snowflake service name. |
+
+### Connection management
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `connect()` | `Promise<void>` | Establishes the connection. |
+| `connectAsync()` | `Promise<void>` | Establishes the connection using the driver's async flow (required for browser-based SSO). |
+| `isConnectionUp()` | `Promise<boolean>` | Whether the connection is currently active. |
+| `isValidConnection()` | `Promise<boolean>` | Whether the connection can accept a query. |
+| `destroy()` | `Promise<void>` | Tears down the connection and disconnects the cache store. |
+
+### Query execution
+
+#### `execute(sqlText, binds?, cacheTtlMs?, useHash?)`
+
+Runs a query and resolves its rows.
+
+- `sqlText` — the statement to run.
+- `binds` — optional bind variables.
+- `cacheTtlMs` — how long the result stays servable from cache, in
+  milliseconds. Defaults to `60000`. Pass `0` to disable caching for this call.
+- `useHash` — hash the SQL text to build the cache key rather than using the raw
+  statement. Defaults to `true`.
+
+Concurrent identical queries are de-duplicated onto a single round trip.
+
+#### `executeAsyncStream(sqlText, binds?)`
+
+An async generator that yields rows one at a time, for result sets too large to
+hold in memory.
+
+```ts
+for await (const row of snowflake.executeAsyncStream('select * from big_table')) {
+    process(row);
+}
+```
+
+#### `createStatement(sqlText, onComplete, binds?, streamData?, getStream?, getStreamFn?)`
+
+Creates a statement and returns its query id. Use the id with the accessors
+below.
+
+### Statement accessors
+
+Each takes the query id returned by `createStatement` and throws a
+`SnowflakeError` if the id is unknown or expired.
+
+| Method | Returns |
+| --- | --- |
+| `getStatementSQLText(stmtId)` | `string` |
+| `getStatementExecutionStatus(stmtId)` | `StatementStatus` |
+| `getColumnsReturnedByStatement(stmtId)` | `Column[] \| undefined` |
+| `getColumnReturnedByStatement(stmtId, columnIdentifier)` | `Column` |
+| `getNumRows(stmtId)` | `number` |
+| `getNumUpdatedRows(stmtId)` | `number \| undefined` |
+| `getSessionState(stmtId)` | `object \| undefined` |
+| `getRequestId(stmtId)` | `string` |
+| `cancel(stmtId)` | `Promise<void>` |
+
+## Development
+
+```bash
+npm install
+npm run lint
+npm run build
+npm test
+```
+
+## License
+
+ISC
